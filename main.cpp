@@ -9,8 +9,83 @@
 #include <set>
 #include <vector>
 #include <unordered_map>
+#include <sstream>
 
 namespace fs = std::filesystem;
+
+void exitWithError(PGconn *conn) {
+    std::cerr << "Error: " << PQerrorMessage(conn) << std::endl;    
+    PQfinish(conn);
+    exit(1);
+}
+
+bool ifUserCheckActive(uint64_t steamid64) {
+    // Conection to API TODO
+    return true;
+}
+
+bool ifUserModerator(PGconn *conn, uint64_t steamid64) {
+    if (!conn) return false;
+
+    // Безопасный SQL-запрос с параметром
+    const char *paramValues[1];
+    std::string steamid_str = std::to_string(steamid64);
+    paramValues[0] = steamid_str.c_str();
+
+    PGresult *res = PQexecParams(
+        conn,
+        "SELECT COUNT(*) FROM public.moderators WHERE steamid = $1;",
+        1,         // Количество параметров
+        nullptr,   // Типы параметров (NULL - определяются автоматически)
+        paramValues,
+        nullptr,   // Длина параметров (NULL - строковые)
+        nullptr,   // Формат параметров (NULL - текст)
+        0          // Ожидаемый формат результата (0 - текст)
+    );
+
+    if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
+        if (res) PQclear(res);
+        std::cerr << "Ошибка запроса: " << PQerrorMessage(conn) << std::endl;
+        return false;
+    }
+
+    bool isModerator = (std::stoi(PQgetvalue(res, 0, 0)) > 0);
+
+    PQclear(res);
+    return isModerator;
+}
+
+
+bool ifUserAdmin(PGconn *conn, uint64_t steamid64) {
+    if (!conn) return false;
+
+    // Безопасный SQL-запрос с параметром
+    const char *paramValues[1];
+    std::string steamid_str = std::to_string(steamid64);
+    paramValues[0] = steamid_str.c_str();
+
+    PGresult *res = PQexecParams(
+        conn,
+        "SELECT COUNT(*) FROM public.admins WHERE steamid = $1;",
+        1,         // Количество параметров
+        nullptr,   // Типы параметров (NULL - определяются автоматически)
+        paramValues,
+        nullptr,   // Длина параметров (NULL - строковые)
+        nullptr,   // Формат параметров (NULL - текст)
+        0          // Ожидаемый формат результата (0 - текст)
+    );
+
+    if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
+        if (res) PQclear(res);
+        std::cerr << "Ошибка запроса: " << PQerrorMessage(conn) << std::endl;
+        return false;
+    }
+
+    bool isModerator = (std::stoi(PQgetvalue(res, 0, 0)) > 0);
+
+    PQclear(res);
+    return isModerator;
+}
 
 
 void ParseSteamID(const std::string& filePath, std::unordered_map<uint64_t, std::pair<std::string, bool>>& steamData) {
@@ -117,12 +192,6 @@ std::unordered_map<uint64_t, std::pair<std::string, bool>> GetSteamId() {
     return steamData;
 }
 
-void exitWithError(PGconn *conn) {
-    std::cerr << "Error: " << PQerrorMessage(conn) << std::endl;    
-    PQfinish(conn);
-    exit(1);
-}
-
 int main() {
     const char *conninfo = "dbname=postgres user=postgres password=3301 host=localhost port=5432";
     PGconn *conn = PQconnectdb(conninfo);
@@ -133,14 +202,30 @@ int main() {
     
     std::cout << "Connected to the database successfully!" << std::endl;
     std::unordered_map<uint64_t, std::pair<std::string, bool>> steamData = GetSteamId();
+
+    uint64_t mainSteamID64;
     for (const auto& [steamID, data] : steamData) {
         const auto& [personaName, mostRecent] = data;
+        if (mostRecent) mainSteamID64 = steamID;
         std::cout << "SteamID: " << steamID
                   << ", PersonaName: " << personaName
                   << ", MostRecent: " << (mostRecent ? "true" : "false")
                   << std::endl;
     }
+
+    if(ifUserCheckActive(mainSteamID64)) {
+        std::cout << ifUserModerator(conn, 76561199068371792) << ifUserAdmin(conn, 76561199068371792);
+        /*
+    Request to DiscordAPI || Check if SteamID requested for RCC Connection 
+    
+    */
+    }
     /*
+    Request to DiscordAPI || Check if SteamID requested for RCC Connection 
+    
+    */
+    /*
+    
     PGresult *res = PQexec(conn, "SELECT * FROM users");
 
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
