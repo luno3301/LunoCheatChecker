@@ -1,5 +1,6 @@
 #include <iostream>
 #include <libpq-fe.h>
+#include <bcrypt.h>
 #include <string>
 #include <Windows.h>
 #include <cstdint>
