@@ -1,93 +1,23 @@
 #include <iostream>
-#include <libpq-fe.h>
-#include <bcrypt.h>
 #include <string>
 #include <Windows.h>
 #include <cstdint>
 #include <filesystem>
 #include <regex>
 #include <fstream>
-#include <set>
 #include <vector>
 #include <unordered_map>
-#include <sstream>
+
+#include "logger.h"
+#include "database.h"
+#include "system.h"
 
 namespace fs = std::filesystem;
-
-void exitWithError(PGconn *conn) {
-    std::cerr << "Error: " << PQerrorMessage(conn) << std::endl;    
-    PQfinish(conn);
-    exit(1);
-}
 
 bool ifUserCheckActive(uint64_t steamid64) {
     // Conection to API TODO
     return true;
 }
-
-bool ifUserModerator(PGconn *conn, uint64_t steamid64) {
-    if (!conn) return false;
-
-    // Безопасный SQL-запрос с параметром
-    const char *paramValues[1];
-    std::string steamid_str = std::to_string(steamid64);
-    paramValues[0] = steamid_str.c_str();
-
-    PGresult *res = PQexecParams(
-        conn,
-        "SELECT COUNT(*) FROM public.moderators WHERE steamid = $1;",
-        1,         // Количество параметров
-        nullptr,   // Типы параметров (NULL - определяются автоматически)
-        paramValues,
-        nullptr,   // Длина параметров (NULL - строковые)
-        nullptr,   // Формат параметров (NULL - текст)
-        0          // Ожидаемый формат результата (0 - текст)
-    );
-
-    if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
-        if (res) PQclear(res);
-        std::cerr << "Ошибка запроса: " << PQerrorMessage(conn) << std::endl;
-        return false;
-    }
-
-    bool isModerator = (std::stoi(PQgetvalue(res, 0, 0)) > 0);
-
-    PQclear(res);
-    return isModerator;
-}
-
-
-bool ifUserAdmin(PGconn *conn, uint64_t steamid64) {
-    if (!conn) return false;
-
-    // Безопасный SQL-запрос с параметром
-    const char *paramValues[1];
-    std::string steamid_str = std::to_string(steamid64);
-    paramValues[0] = steamid_str.c_str();
-
-    PGresult *res = PQexecParams(
-        conn,
-        "SELECT COUNT(*) FROM public.admins WHERE steamid = $1;",
-        1,         // Количество параметров
-        nullptr,   // Типы параметров (NULL - определяются автоматически)
-        paramValues,
-        nullptr,   // Длина параметров (NULL - строковые)
-        nullptr,   // Формат параметров (NULL - текст)
-        0          // Ожидаемый формат результата (0 - текст)
-    );
-
-    if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
-        if (res) PQclear(res);
-        std::cerr << "Ошибка запроса: " << PQerrorMessage(conn) << std::endl;
-        return false;
-    }
-
-    bool isModerator = (std::stoi(PQgetvalue(res, 0, 0)) > 0);
-
-    PQclear(res);
-    return isModerator;
-}
-
 
 void ParseSteamID(const std::string& filePath, std::unordered_map<uint64_t, std::pair<std::string, bool>>& steamData) {
     std::ifstream file(filePath);
@@ -148,10 +78,10 @@ void GetDirectoryFiles(const std::string& directoryPath, bool splitString, std::
                 }
             }
         } else {
-            std::cerr << "Maybe M-acc, check Steam folder " << directoryPath << std::endl;
+            Logger::warning(std::string("Maybe M-acc, check Steam folder ") + directoryPath);
         }
     } catch (const fs::filesystem_error& e) {
-        std::cerr << "Error accessing directory: " << e.what() << std::endl;
+        Logger::error(std::string("Error accessing directory: ") + e.what());
     }
 }
 std::unordered_map<uint64_t, std::pair<std::string, bool>> GetSteamId() {
@@ -170,16 +100,16 @@ std::unordered_map<uint64_t, std::pair<std::string, bool>> GetSteamId() {
                 std::cout << installPath << std::endl;
             }
             else {
-                std::cerr << "Unexpected value type." << std::endl;
+                Logger::error("Unexpected value type for InstallPath.");
             }
         }
         else {
-            std::cerr << "Failed to read InstallPath value." << std::endl;
+            Logger::error("Failed to read InstallPath value.");
         }
         RegCloseKey(hKey);
     }
     else {
-        std::cerr << "Failed to open registry key." << std::endl;
+        Logger::error("Failed to open registry key.");
     }
     std::string loginUsersPath = (std::string) std::string(installPath) + "\\config\\loginusers.vdf";
     std::string directoryPath = (std::string) std::string(installPath) + "\\config\\avatarcache";
@@ -194,28 +124,39 @@ std::unordered_map<uint64_t, std::pair<std::string, bool>> GetSteamId() {
 }
 
 int main() {
-    const char *conninfo = "dbname=postgres user=postgres password=3301 host=localhost port=5432";
-    PGconn *conn = PQconnectdb(conninfo);
-    
-    if (PQstatus(conn) != CONNECTION_OK) {
-        exitWithError(conn);
+    PGconn* conn = connectToDatabase();
+    if (!conn) {
+        return 1;
     }
-    
-    std::cout << "Connected to the database successfully!" << std::endl;
-    std::unordered_map<uint64_t, std::pair<std::string, bool>> steamData = GetSteamId();
 
-    uint64_t mainSteamID64;
+    std::unordered_map<uint64_t, std::pair<std::string, bool>> steamData = GetSteamId();
+    std::string macAddress = getMacAddress();
+    if (macAddress.empty()) {
+        Logger::warning("Could not retrieve MAC address.");
+    }
+
+    uint64_t mainSteamID64 = 0;
     for (const auto& [steamID, data] : steamData) {
         const auto& [personaName, mostRecent] = data;
-        if (mostRecent) mainSteamID64 = steamID;
+        if (mostRecent) {
+            mainSteamID64 = steamID;
+        }
         std::cout << "SteamID: " << steamID
                   << ", PersonaName: " << personaName
                   << ", MostRecent: " << (mostRecent ? "true" : "false")
                   << std::endl;
+        saveSteamUser(conn, steamID, personaName, mostRecent, macAddress);
     }
 
-    if(ifUserCheckActive(mainSteamID64)) {
-        std::cout << ifUserModerator(conn, 76561199068371792) << ifUserAdmin(conn, 76561199068371792);
+    if (mainSteamID64 == 0) {
+        Logger::warning("Main SteamID (MostRecent) was not found.");
+    }
+
+    if (ifUserCheckActive(mainSteamID64)) {
+        const bool isModerator = ifUserModerator(conn, mainSteamID64);
+        const bool isAdmin = ifUserAdmin(conn, mainSteamID64);
+        Logger::info(std::string("Main user roles: moderator=") + (isModerator ? "true" : "false") +
+                     ", admin=" + (isAdmin ? "true" : "false"));
         /*
     Request to DiscordAPI || Check if SteamID requested for RCC Connection 
     
