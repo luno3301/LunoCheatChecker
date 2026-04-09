@@ -12,7 +12,7 @@ LINE 1: INSERT INTO public.users (steamid, persona_name, most_recent...
                                            ^
 
 [2026-03-09 00:31:23][INFO] Main user roles: moderator=false, admin=false
-[2026-03-09 00:40:19][ERROR] Failed to connect to database: connection to server at "localhost" (::1), port 5432 failed: �����:  ������������ "postgres" �� ������ �������� ����������� (�� ������)
+[2026-03-09 00:40:19][ERROR] Failed to connect to database: connection to server at "localhost" (::1), port 5432 failed: �����:  ������������ "postgres" �� ������ �������� ����������� (�� ������)
 
 [2026-03-09 00:40:48][INFO] Connected to the database successfully.
 [2026-03-09 00:40:48][ERROR] Failed to save steam user: ОШИБКА:  столбец "persona_name" в таблице "users" не существует
@@ -58,3 +58,44 @@ DETAIL:  Ошибочная строка содержит (4, 76561199068371792,
 [2026-03-09 00:50:58][INFO] Steam user 76561199068371796 saved to database.
 [2026-03-09 00:50:58][INFO] Steam user 76561199068371792 saved to database.
 [2026-03-09 00:50:58][INFO] Main user roles: moderator=false, admin=false
+[2026-03-09 13:39:06][INFO] Connected to the database successfully.
+[2026-03-09 13:39:06][INFO] Steam user 76561199094540353 saved to database.
+[2026-03-09 13:39:06][INFO] Steam user 76561199068371796 saved to database.
+[2026-03-09 13:39:06][INFO] Steam user 76561199068371792 saved to database.
+[2026-03-09 13:39:06][INFO] Main user roles: moderator=false, admin=false
+[2026-03-10 01:54:41][INFO] Connected to the database successfully.
+[2026-03-10 01:54:41][INFO] Steam user 76561199094540353 saved to database.
+[2026-03-10 01:54:41][INFO] Steam user 76561199068371796 saved to database.
+[2026-03-10 01:54:41][INFO] Steam user 76561199068371792 saved to database.
+[2026-03-10 01:54:41][ERROR] Ошибка запроса к таблице public.moderators: ОШИБКА:  отношение "public.moderators" не существует
+LINE 1: SELECT COUNT(*) FROM public.moderators WHERE steamid = $1;
+                             ^
+
+[2026-03-10 01:54:41][ERROR] Ошибка запроса к таблице public.admins: ОШИБКА:  отношение "public.admins" не существует
+LINE 1: SELECT COUNT(*) FROM public.admins WHERE steamid = $1;
+                             ^
+
+[2026-03-10 01:54:41][INFO] Main user roles: moderator=false, admin=false
+[2026-03-10 01:56:59][INFO] Connected to the database successfully.
+[2026-03-10 01:56:59][INFO] Steam user 76561199094540353 saved to database.
+[2026-03-10 01:56:59][INFO] Steam user 76561199068371796 saved to database.
+[2026-03-10 01:56:59][INFO] Steam user 76561199068371792 saved to database.
+[2026-03-10 01:56:59][ERROR] Ошибка запроса к таблице public.moderators: ОШИБКА:  отношение "public.moderators" не существует
+LINE 1: SELECT COUNT(*) FROM public.moderators WHERE steamid = $1;
+                             ^
+
+[2026-03-10 01:56:59][ERROR] Ошибка запроса к таблице public.admins: ОШИБКА:  отношение "public.admins" не существует
+LINE 1: SELECT COUNT(*) FROM public.admins WHERE steamid = $1;
+                             ^
+
+[2026-03-10 01:56:59][INFO] Main user roles: moderator=false, admin=false
+[2026-03-10 02:05:25][INFO] Connected to the database successfully.
+[2026-03-10 02:05:25][INFO] Steam user 76561199094540353 saved to database.
+[2026-03-10 02:05:25][INFO] Steam user 76561199068371796 saved to database.
+[2026-03-10 02:05:25][INFO] Steam user 76561199068371792 saved to database.
+[2026-03-10 02:05:25][INFO] Main user roles: staff=false
+[2026-03-10 23:27:32][INFO] Connected to the database successfully.
+[2026-03-10 23:27:32][INFO] Steam user 76561199094540353 saved to database.
+[2026-03-10 23:27:32][INFO] Steam user 76561199068371796 saved to database.
+[2026-03-10 23:27:32][INFO] Steam user 76561199068371792 saved to database.
+[2026-03-10 23:27:32][INFO] Main user roles: staff=false

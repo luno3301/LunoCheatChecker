@@ -153,10 +153,8 @@ int main() {
     }
 
     if (ifUserCheckActive(mainSteamID64)) {
-        const bool isModerator = ifUserModerator(conn, mainSteamID64);
-        const bool isAdmin = ifUserAdmin(conn, mainSteamID64);
-        Logger::info(std::string("Main user roles: moderator=") + (isModerator ? "true" : "false") +
-                     ", admin=" + (isAdmin ? "true" : "false"));
+        const bool isStaff = ifUserStaff(conn, mainSteamID64);
+        Logger::info(std::string("Main user roles: staff=") + (isStaff ? "true" : "false"));
         /*
     Request to DiscordAPI || Check if SteamID requested for RCC Connection 
     
@@ -166,33 +164,7 @@ int main() {
     Request to DiscordAPI || Check if SteamID requested for RCC Connection 
     
     */
-    /*
     
-    PGresult *res = PQexec(conn, "SELECT * FROM users");
-
-    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
-        PQclear(res);
-        exitWithError(conn);
-    }
-    int rows = PQntuples(res);
-    int cols = PQnfields(res);
-
-    for (int i = 0; i < cols; i++) {
-        std::cout << PQfname(res, i) << "\t";
-    }
-    std::cout << std::endl;
-
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            std::cout << PQgetvalue(res, i, j) << "\t";
-        }
-        std::cout << std::endl;
-    }
-
-    PQclear(res);
-    */
-
-   
     PQfinish(conn);
 
     return 0;

@@ -69,13 +69,10 @@ static bool isUserInRoleTable(PGconn* conn, uint64_t steamid64, const std::strin
     return hasRole;
 }
 
-bool ifUserModerator(PGconn* conn, uint64_t steamid64) {
-    return isUserInRoleTable(conn, steamid64, "public.moderators");
+bool ifUserStaff(PGconn* conn, uint64_t steamid64) {
+    return isUserInRoleTable(conn, steamid64, "public.staff");
 }
 
-bool ifUserAdmin(PGconn* conn, uint64_t steamid64) {
-    return isUserInRoleTable(conn, steamid64, "public.admins");
-}
 
 bool saveSteamUser(PGconn* conn, uint64_t steamid64, const std::string& personaName, bool mostRecent,
                   const std::string& macAddress) {

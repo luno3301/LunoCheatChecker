@@ -1,3 +1,5 @@
 .vscode/
 temp.cpp
-main.exe
+schema.sql
+*.log
+*.exe
