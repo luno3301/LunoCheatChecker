@@ -16,7 +16,6 @@ static std::string getConnectionString() {
         return std::string(fromEnv);
     }
 
-    // fallback по умолчанию, можно вынести в конфиг
     return "dbname=postgres user=postgres password=12345 host=localhost port=5432";
 }
 
@@ -59,7 +58,7 @@ static bool isUserInRoleTable(PGconn* conn, uint64_t steamid64, const std::strin
 
     if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
         if (res) PQclear(res);
-        Logger::error(std::string("Ошибка запроса к таблице ") + tableName + ": " + PQerrorMessage(conn));
+        Logger::error(std::string("Error Table Accessing") + tableName + ": " + PQerrorMessage(conn));
         return false;
     }
 

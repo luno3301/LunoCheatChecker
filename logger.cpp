@@ -8,7 +8,7 @@
 namespace Logger {
 
     void log(Level level, const std::string& message) {
-        const char* levelStr = "";
+        const char* levelStr = "UNKNOWN";
         switch (level) {
         case Level::Info:
             levelStr = "INFO";
@@ -18,6 +18,8 @@ namespace Logger {
             break;
         case Level::Error:
             levelStr = "ERROR";
+            break;
+        default:
             break;
         }
 

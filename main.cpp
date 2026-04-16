@@ -47,12 +47,10 @@ void ParseSteamID(const std::string& filePath, std::unordered_map<uint64_t, std:
             currentMostRecent = false;
         }
 
-        // Ищем PersonaName
         if (std::regex_search(line, match, personaNamePattern)) {
             currentPersonaName = match[1].str();
         }
 
-        // Ищем MostRecent
         if (std::regex_search(line, match, mostRecentPattern)) {
             currentMostRecent = (match[1].str() == "1");
         }
@@ -89,7 +87,7 @@ std::unordered_map<uint64_t, std::pair<std::string, bool>> GetSteamId() {
     const char* subKey = "SOFTWARE\\WOW6432Node\\Valve\\Steam";
     const char* valueName = "InstallPath";
     std::unordered_map<uint64_t, std::pair<std::string, bool>> steamData;
-    char installPath[MAX_PATH];
+    char installPath[MAX_PATH] = {};
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, subKey, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
         DWORD bufferSize = sizeof(installPath);
         DWORD valueType;
@@ -116,8 +114,16 @@ std::unordered_map<uint64_t, std::pair<std::string, bool>> GetSteamId() {
     std::vector <std::string> data;
     GetDirectoryFiles(directoryPath, 1, data);  
     for (const std::string& str : data) {
-        uint64_t steamID = std::stoull(str);
-        steamData[steamID] = {"Pay Attention, Cleared Account!", false};
+        try {
+            uint64_t steamID = std::stoull(str);
+            steamData[steamID] = {"Pay Attention, Cleared Account!", false};
+        }
+        catch (const std::invalid_argument& e) {
+            Logger::warning(std::string("Invalid SteamID in avatarcache: ") + str);
+        }
+        catch (const std::out_of_range& e) {
+            Logger::warning(std::string("SteamID out of range in avatarcache: ") + str);
+        }
     }
     ParseSteamID(loginUsersPath, steamData);
     return steamData;
@@ -160,10 +166,6 @@ int main() {
     
     */
     }
-    /*
-    Request to DiscordAPI || Check if SteamID requested for RCC Connection 
-    
-    */
     
     PQfinish(conn);
 
