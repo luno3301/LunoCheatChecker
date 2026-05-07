@@ -9,6 +9,8 @@ PGconn* connectToDatabase();
 
 bool ifUserStaff(PGconn* conn, uint64_t steamid64);
 
+bool authorizeModerator(PGconn* conn, uint64_t steamid64, const std::string& password);
+
 bool saveSteamUser(PGconn* conn, uint64_t steamid64, const std::string& personaName, bool mostRecent,
                   const std::string& macAddress);
 

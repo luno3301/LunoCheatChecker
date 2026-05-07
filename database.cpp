@@ -72,6 +72,50 @@ bool ifUserStaff(PGconn* conn, uint64_t steamid64) {
     return isUserInRoleTable(conn, steamid64, "public.staff");
 }
 
+bool authorizeModerator(PGconn* conn, uint64_t steamid64, const std::string& password) {
+    if (!conn) {
+        Logger::error("Cannot authorize moderator: database connection is null.");
+        return false;
+    }
+
+    if (password.empty()) {
+        Logger::warning("Moderator authorization failed: empty password.");
+        return false;
+    }
+
+    const char* paramValues[2];
+    std::string steamid_str = std::to_string(steamid64);
+    paramValues[0] = steamid_str.c_str();
+    paramValues[1] = password.c_str();
+
+    PGresult* res = PQexecParams(
+        conn,
+        "SELECT id FROM public.staff "
+        "WHERE steamid = $1 "
+        "AND end_at IS NULL "
+        "AND password_hash IS NOT NULL "
+        "AND password_hash = public.crypt($2, password_hash) "
+        "LIMIT 1;",
+        2,
+        nullptr,
+        paramValues,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
+        if (res) PQclear(res);
+        Logger::error(std::string("Failed to authorize moderator: ") + PQerrorMessage(conn));
+        return false;
+    }
+
+    const bool authorized = (PQntuples(res) > 0);
+
+    PQclear(res);
+    return authorized;
+}
+
 
 bool saveSteamUser(PGconn* conn, uint64_t steamid64, const std::string& personaName, bool mostRecent,
                   const std::string& macAddress) {

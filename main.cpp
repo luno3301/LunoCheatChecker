@@ -7,6 +7,7 @@
 #include <fstream>
 #include <vector>
 #include <unordered_map>
+#include <algorithm>
 
 #include "logger.h"
 #include "database.h"
@@ -129,10 +130,92 @@ std::unordered_map<uint64_t, std::pair<std::string, bool>> GetSteamId() {
     return steamData;
 }
 
-int main() {
+void PrintMainMenu() {
+    std::cout << std::endl;
+    std::cout << "==============================" << std::endl;
+    std::cout << "      Luno Cheat Checker      " << std::endl;
+    std::cout << "==============================" << std::endl;
+    std::cout << "1. Start check" << std::endl;
+    std::cout << "2. Moderator authorization" << std::endl;
+    std::cout << "0. Exit" << std::endl;
+    std::cout << "Select action: ";
+}
+
+void PrintModMenu(uint64_t moderatorSteamID64) {
+    std::cout << std::endl;
+    std::cout << "==============================" << std::endl;
+    std::cout << "      Welcome" + std::to_string(moderatorSteamID64) << std::endl;
+    std::cout << "==============================" << std::endl;
+    std::cout << "1. Check player bans" << std::endl;
+    std::cout << "2. Ban player" << std::endl;
+    std::cout << "3. Unban Player" << std::endl;
+    std::cout << "4. My Stats" << std::endl;
+    std::cout << "0. Exit" << std::endl;
+    std::cout << "Select action: ";
+}
+
+bool ReadSteamID64(uint64_t& steamid64) {
+    std::cout << "Enter moderator SteamID64: ";
+
+    std::string input;
+    if (!std::getline(std::cin, input)) {
+        Logger::warning("Input closed while reading SteamID64.");
+        return false;
+    }
+
+    const std::regex steamIDPattern(R"(^\s*7656\d+\s*$)");
+    if (!std::regex_match(input, steamIDPattern)) {
+        Logger::warning("Invalid SteamID64 format.");
+        return false;
+    }
+
+    try {
+        steamid64 = std::stoull(input);
+    }
+    catch (const std::exception& e) {
+        Logger::error(std::string("Failed to parse SteamID64: ") + e.what());
+        return false;
+    }
+
+    return true;
+}
+
+bool ReadPassword(std::string& password) {
+    std::cout << "Enter moderator password: ";
+
+    HANDLE inputHandle = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD originalMode = 0;
+    const bool consoleModeAvailable = GetConsoleMode(inputHandle, &originalMode);
+
+    if (consoleModeAvailable) {
+        SetConsoleMode(inputHandle, originalMode & ~ENABLE_ECHO_INPUT);
+    }
+
+    const bool readOk = static_cast<bool>(std::getline(std::cin, password));
+
+    if (consoleModeAvailable) {
+        SetConsoleMode(inputHandle, originalMode);
+    }
+
+    std::cout << std::endl;
+
+    if (!readOk) {
+        Logger::warning("Input closed while reading moderator password.");
+        return false;
+    }
+
+    if (password.empty()) {
+        Logger::warning("Moderator password cannot be empty.");
+        return false;
+    }
+
+    return true;
+}
+
+bool RunSteamCheck() {  
     PGconn* conn = connectToDatabase();
     if (!conn) {
-        return 1;
+        return false;
     }
 
     std::unordered_map<uint64_t, std::pair<std::string, bool>> steamData = GetSteamId();
@@ -168,6 +251,88 @@ int main() {
     }
     
     PQfinish(conn);
+
+    return true;
+}
+void RunModeratorMenu(PGconn* conn, uint64_t moderatorSteamID64) {
+    while(1){
+        std::string choice;
+        if (!std::getline(std::cin, choice)) {
+            Logger::warning("Input closed.");
+            break;
+        }
+        if(choice == "0") {
+            return;
+        }
+    }
+}
+void CheckPlayerBans(PGconn* conn) {}
+void BanPlayer(PGconn* conn, uint64_t moderatorSteamID64) {}
+void UnbanPlayer(PGconn* conn, uint64_t moderatorSteamID64) {}
+void ShowMyStats(PGconn* conn, uint64_t moderatorSteamID64) {}
+
+
+void AuthorizeModerator() {
+    uint64_t moderatorSteamID64 = 0;
+    if (!ReadSteamID64(moderatorSteamID64)) {
+        return;
+    }
+
+    std::string password;
+    if (!ReadPassword(password)) {
+        return;
+    }
+
+    PGconn* conn = connectToDatabase();
+    if (!conn) {
+        std::fill(password.begin(), password.end(), '\0');
+        return;
+    }
+
+    const bool authorized = authorizeModerator(conn, moderatorSteamID64, password);
+    std::fill(password.begin(), password.end(), '\0');
+    password.clear();
+
+    if (authorized) {
+        Logger::info("Moderator authorization successful for SteamID64: " + std::to_string(moderatorSteamID64));
+        std::cout << "Moderator authorized." << std::endl;
+        PrintModMenu(moderatorSteamID64);
+        RunModeratorMenu(conn, moderatorSteamID64);
+    }
+    else {
+        Logger::warning("Moderator authorization failed for SteamID64: " + std::to_string(moderatorSteamID64));
+        std::cout << "Access denied." << std::endl;
+    }
+
+    PQfinish(conn);
+}
+
+
+int main() {
+    while (true) {
+        PrintMainMenu();
+
+        std::string choice;
+        if (!std::getline(std::cin, choice)) {
+            Logger::warning("Input closed.");
+            break;
+        }
+
+        if (choice == "1") {
+            RunSteamCheck();
+        }
+        else if (choice == "2") {
+            AuthorizeModerator();
+        }
+        else if (choice == "0") {
+            Logger::info("Application closed.");
+            break;
+        }
+        else {
+            Logger::warning("Unknown menu action: " + choice);
+            std::cout << "Unknown action. Try again." << std::endl;
+        }
+    }
 
     return 0;
 }
