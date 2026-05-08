@@ -142,9 +142,9 @@ void PrintMainMenu() {
 }
 
 void PrintModMenu(uint64_t moderatorSteamID64) {
-    std::cout << std::endl;
+    std::cout << std::endl; 
     std::cout << "==============================" << std::endl;
-    std::cout << "      Welcome" + std::to_string(moderatorSteamID64) << std::endl;
+    std::cout << "      Welcome " + std::to_string(moderatorSteamID64) << std::endl;
     std::cout << "==============================" << std::endl;
     std::cout << "1. Check player bans" << std::endl;
     std::cout << "2. Ban player" << std::endl;
@@ -154,8 +154,8 @@ void PrintModMenu(uint64_t moderatorSteamID64) {
     std::cout << "Select action: ";
 }
 
-bool ReadSteamID64(uint64_t& steamid64) {
-    std::cout << "Enter moderator SteamID64: ";
+bool ReadSteamID64(uint64_t& steamid64, const std::string& prompt) {
+    std::cout << prompt;
 
     std::string input;
     if (!std::getline(std::cin, input)) {
@@ -254,27 +254,83 @@ bool RunSteamCheck() {
 
     return true;
 }
-void RunModeratorMenu(PGconn* conn, uint64_t moderatorSteamID64) {
+void CheckPlayerBans(PGconn* conn, uint64_t moderatorSteamID64);
+void BanPlayer(PGconn* conn, int moderatorStaffId);
+void UnbanPlayer(PGconn* conn, int moderatorStaffId);
+void ShowMyStats(PGconn* conn, int moderatorStaffId, uint64_t moderatorSteamID64);
+
+void RunModeratorMenu(PGconn* conn, int moderatorStaffId, uint64_t moderatorSteamID64) {
     while(1){
+        PrintModMenu(moderatorSteamID64);
         std::string choice;
         if (!std::getline(std::cin, choice)) {
             Logger::warning("Input closed.");
             break;
         }
-        if(choice == "0") {
+        else if(choice == "1") {
+            CheckPlayerBans(conn, moderatorSteamID64);
+        }
+        else if(choice == "2") {
+            BanPlayer(conn, moderatorStaffId);
+        }
+        else if(choice == "3") {
+            UnbanPlayer(conn, moderatorStaffId);
+        }
+        else if(choice == "4") {
+            ShowMyStats(conn, moderatorStaffId, moderatorSteamID64);
+        }
+        else if (choice == "0") {
+            Logger::info("ModMenu closed.");
             return;
+        }
+        else {
+            Logger::warning("Unknown moderator menu action: " + choice);
+            std::cout << "Unknown action. Try again." << std::endl;
         }
     }
 }
-void CheckPlayerBans(PGconn* conn) {}
-void BanPlayer(PGconn* conn, uint64_t moderatorSteamID64) {}
-void UnbanPlayer(PGconn* conn, uint64_t moderatorSteamID64) {}
-void ShowMyStats(PGconn* conn, uint64_t moderatorSteamID64) {}
+void CheckPlayerBans(PGconn* conn, uint64_t moderatorSteamID64) {}
+void BanPlayer(PGconn* conn, int moderatorStaffId) {
+    uint64_t playerSteamID64 = 0;
+    if (!ReadSteamID64(playerSteamID64, "Enter player SteamID64: ")) {
+        return;
+    }
+
+    std::string reason;
+    std::cout << "Enter ban reason: ";
+    if (!std::getline(std::cin, reason)) {
+        Logger::warning("Input closed while reading ban reason.");
+        return;
+    }
+
+    if (reason.empty()) {
+        Logger::warning("Ban reason cannot be empty.");
+        std::cout << "Ban reason cannot be empty." << std::endl;
+        return;
+    }
+
+    std::string evidence;
+    std::cout << "Enter evidence (optional): ";
+    if (!std::getline(std::cin, evidence)) {
+        Logger::warning("Input closed while reading ban evidence.");
+        return;
+    }
+
+    const bool created = createBan(conn, playerSteamID64, moderatorStaffId, reason, evidence);
+    if (created) {
+        std::cout << "Ban created." << std::endl;
+    }
+    else {
+        std::cout << "Failed to create ban." << std::endl;
+    }
+}
+void UnbanPlayer(PGconn* conn, int moderatorStaffId) {}
+void ShowMyStats(PGconn* conn, int moderatorStaffId, uint64_t moderatorSteamID64) {}
 
 
 void AuthorizeModerator() {
     uint64_t moderatorSteamID64 = 0;
-    if (!ReadSteamID64(moderatorSteamID64)) {
+    if (!ReadSteamID64(moderatorSteamID64, "Enter moderator SteamID64: ")) {
         return;
     }
 
@@ -289,15 +345,15 @@ void AuthorizeModerator() {
         return;
     }
 
-    const bool authorized = authorizeModerator(conn, moderatorSteamID64, password);
+    int moderatorStaffId = 0;
+    const bool authorized = authorizeModerator(conn, moderatorSteamID64, password, moderatorStaffId);
     std::fill(password.begin(), password.end(), '\0');
     password.clear();
 
     if (authorized) {
         Logger::info("Moderator authorization successful for SteamID64: " + std::to_string(moderatorSteamID64));
         std::cout << "Moderator authorized." << std::endl;
-        PrintModMenu(moderatorSteamID64);
-        RunModeratorMenu(conn, moderatorSteamID64);
+        RunModeratorMenu(conn, moderatorStaffId, moderatorSteamID64);
     }
     else {
         Logger::warning("Moderator authorization failed for SteamID64: " + std::to_string(moderatorSteamID64));

@@ -68,11 +68,89 @@ static bool isUserInRoleTable(PGconn* conn, uint64_t steamid64, const std::strin
     return hasRole;
 }
 
+bool createBan(PGconn* conn, uint64_t playerSteamID64, int moderatorStaffId, const std::string& reason, const std::string& evidence) {
+    if (!conn) {
+        Logger::error("Cannot create ban: database connection is null.");
+        return false;
+    }
+
+    if (reason.empty()) {
+        Logger::warning("Cannot create ban: reason is empty.");
+        return false;
+    }
+
+    const char* paramValues[4];
+    std::string playerSteamID64Str = std::to_string(playerSteamID64);
+    std::string moderatorStaffIdStr = std::to_string(moderatorStaffId);
+
+    paramValues[0] = playerSteamID64Str.c_str();
+    paramValues[1] = moderatorStaffIdStr.c_str();
+    paramValues[2] = reason.c_str();
+    paramValues[3] = evidence.c_str();
+
+    PGresult* res = PQexecParams(
+        conn,
+        "WITH created_ban AS ("
+        "    INSERT INTO public.bans (user_id, server_id, banned_by_staff_id, reason, evidence) "
+        "    SELECT u.id, s.server_id, s.id, $3, NULLIF($4, '') "
+        "    FROM public.users u "
+        "    JOIN public.staff s ON s.id = $2::integer "
+        "    WHERE u.steamid = $1::bigint "
+        "    AND s.end_at IS NULL "
+        "    RETURNING id"
+        "), updated_staff AS ("
+        "    UPDATE public.staff s "
+        "    SET ban_count = ("
+        "        SELECT COUNT(*)::integer "
+        "        FROM public.bans b "
+        "        WHERE b.banned_by_staff_id = s.id"
+        "    ) + ("
+        "        SELECT COUNT(*)::integer "
+        "        FROM created_ban cb "
+        "    ) "
+        "    WHERE s.id = $2::integer "
+        "    AND EXISTS (SELECT 1 FROM created_ban) "
+        "    RETURNING s.ban_count"
+        ") "
+        "SELECT cb.id, us.ban_count "
+        "FROM created_ban cb "
+        "LEFT JOIN updated_staff us ON true;",
+        4,
+        nullptr,
+        paramValues,
+        nullptr,
+        nullptr,
+        0
+    );
+
+    if (!res || PQresultStatus(res) != PGRES_TUPLES_OK) {
+        if (res) PQclear(res);
+        Logger::error(std::string("Failed to create ban: ") + PQerrorMessage(conn));
+        return false;
+    }
+
+    if (PQntuples(res) == 0) {
+        PQclear(res);
+        Logger::warning("Ban was not created: player or active moderator staff record was not found.");
+        return false;
+    }
+
+    const std::string banId = PQgetvalue(res, 0, 0);
+    const std::string banCount = PQgetvalue(res, 0, 1);
+    PQclear(res);
+
+    Logger::info("Ban " + banId + " created for SteamID64: " + playerSteamID64Str +
+                 ". Moderator ban count: " + banCount);
+    return true;
+}
+
 bool ifUserStaff(PGconn* conn, uint64_t steamid64) {
     return isUserInRoleTable(conn, steamid64, "public.staff");
 }
 
-bool authorizeModerator(PGconn* conn, uint64_t steamid64, const std::string& password) {
+bool authorizeModerator(PGconn* conn, uint64_t steamid64, const std::string& password, int& moderatorStaffId) {
+    moderatorStaffId = 0;
+
     if (!conn) {
         Logger::error("Cannot authorize moderator: database connection is null.");
         return false;
@@ -111,6 +189,9 @@ bool authorizeModerator(PGconn* conn, uint64_t steamid64, const std::string& pas
     }
 
     const bool authorized = (PQntuples(res) > 0);
+    if (authorized) {
+        moderatorStaffId = std::stoi(PQgetvalue(res, 0, 0));
+    }
 
     PQclear(res);
     return authorized;
