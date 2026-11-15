@@ -4,3 +4,7 @@ schema.sql
 *.log
 *.exe
 *.o
+*.d
+/build*/
+/CMakeUserPresets.json
+/CMakeLists.txt.user*

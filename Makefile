@@ -1,20 +1,22 @@
-CXX      = C:/msys64/mingw64/bin/g++.exe
-CXXFLAGS = -std=c++17 -I. -IC:/msys64/mingw64/include -IC:/msys64/mingw64/include/postgresql
-LDFLAGS  = -LC:/msys64/mingw64/lib -lpq -lbcrypt -liphlpapi -lws2_32
+CMAKE ?= cmake
+BUILD_DIR ?= build
+CMAKE_ARGS ?= -G "MSYS Makefiles" -DCMAKE_CXX_COMPILER=C:/msys64/mingw64/bin/g++.exe -DCMAKE_MAKE_PROGRAM=C:/msys64/usr/bin/make.exe -DCMAKE_PREFIX_PATH=C:/msys64/mingw64
 
-SRCS = main.cpp logger.cpp database.cpp system.cpp
-OBJS = $(SRCS:.cpp=.o)
-TARGET = app.exe
+.PHONY: all configure clean scanner-debug scanner-release
 
-.PHONY: all clean
+all: configure
+	$(CMAKE) --build "$(BUILD_DIR)"
 
-all: $(TARGET)
-
-$(TARGET): $(OBJS)
-	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
-
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
+configure:
+	$(CMAKE) -S . -B "$(BUILD_DIR)" $(CMAKE_ARGS)
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	$(CMAKE) --build "$(BUILD_DIR)" --target clean
+
+scanner-release:
+	$(CMAKE) --preset scanner-release
+	$(CMAKE) --build --preset scanner-release
+
+scanner-debug:
+	$(CMAKE) --preset scanner-debug
+	$(CMAKE) --build --preset scanner-debug

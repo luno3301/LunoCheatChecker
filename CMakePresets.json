@@ -1,0 +1,38 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "mingw-base",
+      "hidden": true,
+      "generator": "MSYS Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
+        "CMAKE_MAKE_PROGRAM": "C:/msys64/usr/bin/make.exe",
+        "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
+        "LUNO_BUILD_SCANNER_APP": "ON"
+      }
+    },
+    {
+      "name": "scanner-debug",
+      "displayName": "Console scanner (Debug)",
+      "inherits": "mingw-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "scanner-release",
+      "displayName": "Console scanner (Release)",
+      "inherits": "mingw-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "scanner-debug", "configurePreset": "scanner-debug" },
+    { "name": "scanner-release", "configurePreset": "scanner-release" }
+  ]
+}
