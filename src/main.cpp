@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -23,6 +24,8 @@ void printHelp() {
     std::cout
         << "LunoScanner\n"
         << "Usage: LunoScanner.exe [--steam-path <directory>] [--save]\n\n"
+        << "Opens a menu: scan Steam, scan the file system, or exit.\n"
+        << "The options below apply when Steam scanning is selected.\n\n"
         << "  --steam-path <directory>  Scan this Steam folder instead of using the registry.\n"
         << "  --save                    Save collected accounts to PostgreSQL (DB_CONNINFO).\n"
         << "  --help, -h                Show this help.\n";
@@ -105,12 +108,36 @@ int wmain(int argc, wchar_t* argv[]) {
             return 0;
         }
 
-        const SteamScanner scanner;
-        const auto result = options.steamDirectory.empty()
-            ? scanner.scan() : scanner.scan(options.steamDirectory);
-        printResult(result);
-        const bool saved = !options.save || saveAccounts(result);
-        return result.completed && saved ? 0 : 1;
+        while (true) {
+            std::cout << "\n1. Scan Steam\n"
+                      << "2. Scan file system\n"
+                      << "0. Exit\n"
+                      << "Select action: " << std::flush;
+
+            std::string choice;
+            if (!std::getline(std::cin, choice) || choice == "0") {
+                return 0;
+            }
+
+            if (choice == "1") {
+                try {
+                    const SteamScanner scanner;
+                    const auto result = options.steamDirectory.empty()
+                        ? scanner.scan() : scanner.scan(options.steamDirectory);
+                    printResult(result);
+                    const bool saved = !options.save || saveAccounts(result);
+                    if (!result.completed || !saved) {
+                        Logger::warning("Steam scan or requested save did not complete successfully.");
+                    }
+                } catch (const std::exception& error) {
+                    Logger::error(error.what());
+                }
+            } else if (choice == "2") {
+                std::cout << "File system scanning is not implemented yet.\n";
+            } else {
+                std::cout << "Unknown action. Enter 1, 2, or 0.\n";
+            }
+        }
     } catch (const std::exception& error) {
         Logger::error(error.what());
         return 1;
